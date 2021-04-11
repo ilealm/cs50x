@@ -40,7 +40,7 @@
                             {{ transaction.stock }}
                         </td>
                         <td style="text-align:center">
-                             {{ "$%.2f"|format(transaction.price) }}
+                             {{ transaction.price | usd }}
                         </td>
                         <td style="text-align:center">
                            {{ transaction.shares }}
@@ -49,7 +49,7 @@
                            {{ transaction.operation }}
                         </td>
                         <td style="text-align:left">
-                             {{ "$%.2f"|format(transaction.amount) }}
+                             {{ transaction.amount | usd }}
                         </td>
                     </tr>
                 {% endfor%}

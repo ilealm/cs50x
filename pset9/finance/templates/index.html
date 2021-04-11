@@ -33,12 +33,10 @@
                             {{ stock.StockShares }}
                         </td>
                         <td style="text-align:left">
-                            {{ "$%.2f"|format(stock.current_price) }}
-                           <!--$ {{ stock.current_price }}-->
+                            {{ stock.current_price | usd }}
                         </td>
                         <td style="text-align:left">
-                           <!--$ {{ stock.holding_value }}-->
-                             {{ "$%.2f"|format(stock.holding_value) }}
+                             {{ stock.holding_value | usd }}
                         </td>
                     </tr>
                 {% endfor%}
@@ -47,7 +45,7 @@
                         <td></td>
                         <td></td>
                         <td>
-                            {{ "$%.2f"|format(cash) }}
+                            {{ cash | usd  }}
                         </td>
                     </tr>
                 <tfoot>
@@ -57,7 +55,7 @@
                   <td></td>
                   <td style="text-align:right">
                        <strong>
-                           {{ "$%.2f"|format(holding_sum) }}
+                           {{ holding_sum | usd }}
                        </strong> 
                 </td>
                 </tr>

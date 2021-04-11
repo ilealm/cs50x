@@ -7,13 +7,7 @@
 {% block main %}
     <form action="/quote" method="post">
         <div class="form-group">
-            
-            {% if not stock %}
-                <h3>The stock does not exist.</h3>
-            {% else %}
-                <h3>{{ stock.name }} ({{ stock.symbol }}) has a price of {{ stock.price }}</h3>
-            {% endif%}
-           
+            <h3>{{ stock.name }} ({{ stock.symbol }}) has a price of {{ stock.price | usd }}</h3>
         </div>
         
     </form>
