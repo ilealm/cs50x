@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+    
+        <div>
+            {{ message }}
+        </div>
+    
+        <div class="form-group">
+            <h3> History </h3>
+        </div>
+        
+        <div>
+            <h4>Total Operations: {{num_operations }}</h4>
+            <h4>Total boughts: {{boughts }}</h4>
+            <h4>Total sold: {{sold }}</h4>
+        </div>
+        <table>
+            <thead>
+                <tr> 
+                    <th>Date</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Shares</th>
+                    <th>Operation</th>
+                    <th>Holding Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in history %}
+                    <tr>
+                        <td style="text-align:left">
+                            {{ transaction.date }}
+                        </td>
+                         <td style="text-align:left">
+                            {{ transaction.stock }}
+                        </td>
+                        <td style="text-align:center">
+                             {{ "$%.2f"|format(transaction.price) }}
+                        </td>
+                        <td style="text-align:center">
+                           {{ transaction.shares }}
+                        </td>
+                        <td style="text-align:center">
+                           {{ transaction.operation }}
+                        </td>
+                        <td style="text-align:left">
+                             {{ "$%.2f"|format(transaction.amount) }}
+                        </td>
+                    </tr>
+                {% endfor%}
+                
+            </tbody>
+        </table>
+  
+  
+{% endblock %}

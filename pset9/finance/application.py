@@ -46,8 +46,35 @@ if not os.environ.get("API_KEY"):
 @login_required
 def index():
     """Show portfolio of stocks"""
+    stocks = []
+    
     # step 4,
-    return apology("TODO")
+    # get the username from the current session["user_id"]
+    rows = db.execute("SELECT username, cash FROM users WHERE id = ?",session["user_id"])
+    # Ensure username exists and password is correct
+    if len(rows) != 1 :
+        return apology("invalid username and/or password", 400)
+    
+    username = rows[0]['username']  
+    cash = rows[0]['cash']  
+    
+    # get the user's transactions where are buys, group by symbol
+    # TODO, FIX THIS SELECT TO AFFECT THE SOLD SHARES
+    transactions = db.execute("SELECT stock, symbol , SUM(shares) as 'StockShares' FROM transactions WHERE username= ? AND operation='BUY' GROUP BY symbol", username)
+    
+    # for each transaction, get the info from API to get the current stock value and get the holding_value
+    holding_sum = cash
+    for i in range(len(transactions)):
+        current_price = lookup(transactions[i]["symbol"])
+        # print(current_price["price"])
+     
+        stocks.append({"stock": transactions[i]["stock"], "StockShares": transactions[i]["StockShares"], "current_price": current_price["price"], "holding_value": current_price["price"] * transactions[i]["StockShares"] })
+        holding_sum += current_price["price"] * transactions[i]["StockShares"]
+    
+    # send the array to index.html
+    # print(stocks)
+    
+    return render_template("index.html", stocks= stocks, holding_sum = holding_sum, cash=cash)  
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -55,7 +82,62 @@ def index():
 def buy():
     """Buy shares of stock"""
     # step 3,
-    return apology("TODO")
+    if request.method == 'POST':
+        symbol = request.form.get("symbol").upper()
+        shares = request.form.get("shares")
+
+        # validations
+        if not symbol or not shares:
+            return apology("The Stock and/or shares are required", 400)
+        
+        if int(shares) <= 0:
+            return apology("The shares must be greater than zero", 400)
+            
+        # get the stock info, if exists
+        stock = lookup(symbol)
+        if not stock: 
+            return apology("The stock does not exists.", 400)
+
+            
+        # get the transaction values
+        symbol_name = stock['symbol'] + ' - ' + stock['name']
+        price = stock['price']
+        transaction_amount = float(shares) * price
+        
+
+        # get the user info
+        user = db.execute("SELECT * FROM users WHERE id = ?", session["user_id"])
+        # Ensure username exists and password is correct
+        if len(user) != 1 :
+            return apology("invalid username and/or password", 400)
+        
+        # print(symbol, price, shares, transaction_amount)
+        
+        # validate if the user has founds to do the transaction
+        user_cash = user[0]['cash']
+        if transaction_amount > user_cash:
+            return apology("Insufficient funds", 400)
+            
+            
+            
+        
+        # store the transaction
+        db.execute("BEGIN TRANSACTION")
+        
+        # update user's cash
+        new_cash = user_cash - transaction_amount
+        db.execute("UPDATE users SET cash = ? WHERE id = ?", new_cash, session["user_id"])
+        # add the new transacction
+        db.execute("INSERT INTO transactions (username, stock, price, shares, operation, amount, symbol) VALUES (?, ?, ?, ?, ?, ?, ?)", user[0]['username'], symbol_name, price, shares, 'BUY', transaction_amount, symbol )
+        
+        # user tbl id, username, hash, cash
+        db.execute("COMMIT")
+        
+        return render_template("index.html", message="Succesful bought")
+        
+        
+    else:
+        return render_template("buy.html")
 
 
 @app.route("/history")
@@ -63,7 +145,13 @@ def buy():
 def history():
     """Show history of transactions"""
     # step 6
-    return apology("TODO")
+    user_info = get_userInfo()
+    history = db.execute("SELECT * FROM transactions WHERE username=?",user_info["username"])
+    
+    boughts = db.execute("SELECT * FROM transactions WHERE operation='BUY' AND username=?",user_info["username"])
+    sold = db.execute("SELECT * FROM transactions WHERE operation='SELL' AND username=?",user_info["username"])
+    
+    return render_template("history.html", history=history, boughts= len(boughts), sold= len(sold), num_operations=len(boughts) + len(sold))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -78,18 +166,18 @@ def login():
 
         # Ensure username was submitted
         if not request.form.get("username"):
-            return apology("must provide username", 403)
+            return apology("must provide username", 400)
 
         # Ensure password was submitted
         elif not request.form.get("password"):
-            return apology("must provide password", 403)
+            return apology("must provide password", 400)
 
         # Query database for username
         rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
 
         # Ensure username exists and password is correct
         if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
-            return apology("invalid username and/or password", 403)
+            return apology("invalid username and/or password", 400)
 
         # Remember which user has logged in
         session["user_id"] = rows[0]["id"]
@@ -120,14 +208,14 @@ def quote():
     # step 2, build quote.html and handle here the methods
     if request.method == "POST":
         symbol = request.form.get("symbol")
-        
+
         if not symbol:
-            return apology("A stock is requiered")
-        # {'name': 'Apple Inc', 'price': 132.97, 'symbol': 'AAPL'}
+            return apology("A stock is requiered", 400)
+       
         return render_template("quoted.html", stock = lookup(symbol))
     else:
         return render_template("quote.html")
-    
+
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -138,42 +226,104 @@ def register():
         username = request.form.get("username")
         pwd = request.form.get("password")
         conf = request.form.get("confirmation")
-        
+
         if not username:
-            return apology("must provide username", 403)
-            
+            return apology("must provide username", 400)
+
         if not pwd:
-            return apology("must provide a password", 403)
-        
+            return apology("must provide a password", 400)
+
         if not conf:
-            return apology("must provide a confirmation", 403)
-            
+            return apology("must provide a confirmation", 400)
+
         if not pwd == conf:
-            return apology("password and confirmation must be equal", 403)
-            
+            return apology("password and confirmation must be equal", 400)
+
         # check if that username is already in the DB
         rows = db.execute("SELECT * FROM users WHERE username = ?", username)
 
         if len(rows) == 1 :
-            return apology("User already exists.", 403)
-        
+            return apology("User already exists.", 400)
+
         # insert the new user
         db.execute("INSERT INTO users (username, hash) VALUES (?,?)", username, generate_password_hash(pwd))
-   
-      
+
+        return redirect("/")
+
     else:
         return render_template("register.html")
-        
 
 
+
+def get_userInfo():
+    rows = db.execute("SELECT * FROM users WHERE id = ?", session["user_id"])
+
+    # Ensure username exists and password is correct
+    if len(rows) != 1 :
+        return apology("invalid username and/or password", 400)
+    else:
+        return rows[0]
+    
 
 @app.route("/sell", methods=["GET", "POST"])
 @login_required
 def sell():
     """Sell shares of stock"""
     # step 5
-    return apology("TODO")
-
+    if request.method == 'POST':
+        # get the form values
+        symbol = request.form.get("symbol")
+        shares = int(request.form.get("shares"))
+  
+        # validate that the user entered shared and/or symbol
+        if not shares or not symbol:
+            return apology("select a symbol and shares", 400)
+        
+        
+        if shares < 1:
+            return apology("shares must be greater than zero", 400)
+            
+        # validate if the user can sell the selected amount of shares
+        user_info = get_userInfo()
+        bought_shares = db.execute("SELECT SUM(shares) as 'bought' FROM transactions WHERE username= ? AND operation='BUY' AND symbol=?",user_info["username"], symbol)
+        sold_shares = db.execute("SELECT SUM(shares) as 'sold' FROM transactions WHERE username= ? AND operation='SELL' AND symbol=?",user_info["username"], symbol) 
+        if sold_shares[0]["sold"] == None :
+            available_shares = bought_shares[0]["bought"]
+        else:
+            available_shares = bought_shares[0]["bought"] - sold_shares[0]["sold"]
+        
+        if shares > available_shares:
+            return apology("Not enouhg shares to sell ", 400)
+        
+      
+        # get the current stock value and calculate the gain
+        current_stock = lookup(symbol)
+        gain = shares * current_stock["price"]
+        new_cash = user_info["cash"] + gain  
+        # print(gain,user_info["cash"] , new_cash)
+        
+        # store the transaction
+        db.execute("BEGIN TRANSACTION")
+        
+        # update user's cash
+        db.execute("UPDATE users SET cash = ? WHERE id = ?", new_cash, session["user_id"])
+        
+        # log the transaction
+        # get the transaction values
+        symbol_name = current_stock['symbol'] + ' - ' + current_stock['name']
+        price = current_stock['price']
+        transaction_amount = float(shares) * price
+        db.execute("INSERT INTO transactions (username, stock, price, shares, operation, amount, symbol) VALUES (?, ?, ?, ?, ?, ?, ?)", user_info["username"], symbol_name, price, shares, 'SELL', transaction_amount, symbol )
+        
+        db.execute("COMMIT")
+        # redirect to index
+        return redirect("/")
+    else:
+        user_info = get_userInfo()
+        # get the user's symbols
+        symbols = db.execute('SELECT DISTINCT(symbol) FROM transactions WHERE username= ? ORDER BY symbol', user_info["username"] )
+        
+        return render_template("sell.html", symbols=symbols)
 
 def errorhandler(e):
     """Handle error"""

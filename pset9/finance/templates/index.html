@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Index
+{% endblock %}
+
+{% block main %}
+    
+        <div>
+            {{ message }}
+        </div>
+    
+        <div class="form-group">
+            <h3> Current portafolio</h3>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Shares</th>
+                    <th>Current Price</th>
+                    <th>Holding Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in stocks %}
+                    <tr>
+                        <td style="text-align:left">
+                            {{ stock.stock }}
+                        </td>
+                        <td style="text-align:center">
+                            {{ stock.StockShares }}
+                        </td>
+                        <td style="text-align:left">
+                            {{ "$%.2f"|format(stock.current_price) }}
+                           <!--$ {{ stock.current_price }}-->
+                        </td>
+                        <td style="text-align:left">
+                           <!--$ {{ stock.holding_value }}-->
+                             {{ "$%.2f"|format(stock.holding_value) }}
+                        </td>
+                    </tr>
+                {% endfor%}
+                    <tr>
+                        <td style="text-align:left"> CASH</td>
+                        <td></td>
+                        <td></td>
+                        <td>
+                            {{ "$%.2f"|format(cash) }}
+                        </td>
+                    </tr>
+                <tfoot>
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td style="text-align:right">
+                       <strong>
+                           {{ "$%.2f"|format(holding_sum) }}
+                       </strong> 
+                </td>
+                </tr>
+              </tfoot>
+            </tbody>
+        </table>
+  
+  
+{% endblock %}
